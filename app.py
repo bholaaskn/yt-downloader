@@ -1,52 +1,44 @@
-import os, re, tempfile, threading
-from datetime import datetime
-from flask import Flask, request, render_template_string, send_file, abort
-from yt_dlp import YoutubeDL
-
-# Try to supply ffmpeg on free hosts (Render) via imageio-ffmpeg binary
-try:
-    from imageio_ffmpeg import get_ffmpeg_exe
-    FFMPEG_PATH = get_ffmpeg_exe()
-except Exception:
-    FFMPEG_PATH = None  # yt-dlp will try PATH
+import os
+from flask import Flask, render_template, request, send_file
+import yt_dlp
 
 app = Flask(__name__)
 
-SAFE_NAME = re.compile(r"[^A-Za-z0-9_\-\.]+")
+# Path to ffmpeg (Render usually installs it globally)
+FFMPEG_PATH = "/usr/bin/ffmpeg"
 
-def sanitize_filename(name: str) -> str:
-    name = SAFE_NAME.sub("_", name).strip("._")
-    return name or f"video_{int(datetime.utcnow().timestamp())}"
 
-@app.route("/", methods=["GET"])
-def index():
-    # Read index.html from repo
-    with open("index.html", "r", encoding="utf-8") as f:
-        return render_template_string(f.read())
-
-def format_selector(quality: str) -> str:
+def format_selector(quality):
+    """
+    Returns the format string for yt-dlp based on quality.
+    """
     if quality == "mp3":
         return "bestaudio/best"
-    if quality == "best":
-        return "bestvideo+bestaudio/best"
-    try:
-        h = int(quality)
-    except Exception:
-        h = 2160
-    return f"bestvideo[height>={h}]+bestaudio/best"
+    elif quality == "720p":
+        return "bestvideo[height<=720]+bestaudio/best[height<=720]"
+    elif quality == "1080p":
+        return "bestvideo[height<=1080]+bestaudio/best[height<=1080]"
+    elif quality == "4k":
+        return "bestvideo[height<=2160]+bestaudio/best[height<=2160]"
+    else:
+        return "best"
+
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
 
 @app.route("/download", methods=["POST"])
-def download():
-    url = (request.form.get("url") or "").strip()
-    quality = (request.form.get("quality") or "2160").strip()
-    ext = (request.form.get("ext") or "mp4").strip().lower()
-    if not url:
-        abort(400, "Missing URL")
+def download_video():
+    url = request.form["url"]
+    quality = request.form["quality"]
+    ext = request.form.get("ext", "mp4")
 
-    tmpdir = tempfile.mkdtemp(prefix="yt4k_")
-    outtmpl = os.path.join(tmpdir, "%(title).200B.%(id)s.%(ext)s")
+    # Save files inside downloads/ folder
+    outtmpl = f"downloads/%(title)s.%(ext)s"
 
-    # 👇 Cookies added here
+    # yt-dlp options
     ydl_opts = {
         "outtmpl": outtmpl,
         "merge_output_format": ext if quality != "mp3" else None,
@@ -54,55 +46,29 @@ def download():
         "noplaylist": True,
         "quiet": True,
         "no_warnings": True,
-        "cookies": "cookies.txt",   # use cookies file
+        "cookies": "cookies.txt",   # 👈 must match filename in repo
         "ffmpeg_location": FFMPEG_PATH,
-    }
-
-    # Add mp3 postprocessor when needed
-    if quality == "mp3":
-        ydl_opts["postprocessors"] = [{
+        "postprocessors": [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": "mp3",
-            "preferredquality": "192"
-        }]
-        ydl_opts["ffmpeg_location"] = FFMPEG_PATH
+            "preferredquality": "192",
+        }] if quality == "mp3" else [],
+    }
 
     try:
-        with YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            if quality == "mp3":
+                filename = filename.rsplit(".", 1)[0] + ".mp3"
+
+        return send_file(filename, as_attachment=True)
+
     except Exception as e:
-        abort(400, f"Failed to download: {e}")
+        return f"❌ Error: {str(e)}"
 
-    # Find largest resulting file in tmpdir
-    files = [os.path.join(tmpdir, f) for f in os.listdir(tmpdir)]
-    if not files:
-        abort(500, "No output file found.")
-    filepath = max(files, key=lambda p: os.path.getsize(p))
-    filename = os.path.basename(filepath)
-
-    # Background cleanup
-    def cleanup(path):
-        import time, shutil
-        time.sleep(30)
-        try:
-            shutil.rmtree(path, ignore_errors=True)
-        except Exception:
-            pass
-    threading.Thread(target=cleanup, args=(tmpdir,), daemon=True).start()
-
-    return send_file(
-        filepath,
-        as_attachment=True,
-        download_name=filename,
-        mimetype="application/octet-stream",
-        conditional=True
-    )
-
-@app.route("/healthz")
-def healthz():
-    return "ok", 200
 
 if __name__ == "__main__":
-    # Render provides PORT env var
-    port = int(os.environ.get("PORT", "8000"))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    # Ensure downloads folder exists
+    os.makedirs("downloads", exist_ok=True)
+    app.run(host="0.0.0.0", port=5000)
