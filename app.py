@@ -46,7 +46,7 @@ def download():
     tmpdir = tempfile.mkdtemp(prefix="yt4k_")
     outtmpl = os.path.join(tmpdir, "%(title).200B.%(id)s.%(ext)s")
 
-    # 👇 Here we added cookies.txt support
+    # 👇 Cookies added here
     ydl_opts = {
         "outtmpl": outtmpl,
         "merge_output_format": ext if quality != "mp3" else None,
@@ -54,7 +54,7 @@ def download():
         "noplaylist": True,
         "quiet": True,
         "no_warnings": True,
-        "cookies": "cookies.txt",   # 👈 use cookies file
+        "cookies": "cookies.txt",   # use cookies file
         "ffmpeg_location": FFMPEG_PATH,
     }
 
