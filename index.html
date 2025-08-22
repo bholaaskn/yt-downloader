@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>YouTube 4K Downloader</title>
+  <style>
+    body { font-family: system-ui, Segoe UI, Roboto, Arial; background:#0b1220; color:#e5e7eb; margin:0; padding:2rem;}
+    .card{max-width:720px;margin:0 auto;background:#111827;padding:1.5rem;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+    h1{margin:0 0 .5rem}
+    label{color:#9ca3af;font-size:.95rem}
+    input,select,button{width:100%; padding:.9rem 1rem; border-radius:12px; border:1px solid #374151; background:#0b1020; color:#e5e7eb}
+    button{background:#4f46e5; border:0; font-weight:600; cursor:pointer; margin-top:.6rem}
+    .row{display:grid; gap:.8rem; grid-template-columns:2fr 1fr}
+    @media (max-width:640px){.row{grid-template-columns:1fr}}
+    .note{background:#0d1b2a;border:1px solid #1f2937;padding:.75rem 1rem;border-radius:12px;font-size:.9rem;margin:.5rem 0 1rem}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🎬 YouTube 4K Downloader</h1>
+    <p class="note">Use only for videos you own or with permission. This app uses yt-dlp and ffmpeg.</p>
+    <form method="POST" action="/download">
+      <label for="url">YouTube URL</label>
+      <input id="url" name="url" type="text" placeholder="https://www.youtube.com/watch?v=..." required />
+
+      <div class="row" style="margin-top:.8rem">
+        <div>
+          <label for="quality">Quality</label>
+          <select id="quality" name="quality">
+            <option value="2160">4K (2160p)</option>
+            <option value="1440">2K (1440p)</option>
+            <option value="1080">1080p</option>
+            <option value="best">Best available</option>
+            <option value="mp3">Audio only (MP3)</option>
+          </select>
+        </div>
+        <div>
+          <label for="ext">Container</label>
+          <select id="ext" name="ext">
+            <option value="mp4">MP4</option>
+            <option value="mkv">MKV</option>
+            <option value="webm">WEBM</option>
+          </select>
+        </div>
+      </div>
+
+      <button type="submit">Download</button>
+    </form>
+  </div>
+</body>
+</html>
