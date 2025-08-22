@@ -46,6 +46,7 @@ def download():
     tmpdir = tempfile.mkdtemp(prefix="yt4k_")
     outtmpl = os.path.join(tmpdir, "%(title).200B.%(id)s.%(ext)s")
 
+    # 👇 Here we added cookies.txt support
     ydl_opts = {
         "outtmpl": outtmpl,
         "merge_output_format": ext if quality != "mp3" else None,
@@ -53,10 +54,11 @@ def download():
         "noplaylist": True,
         "quiet": True,
         "no_warnings": True,
+        "cookies": "cookies.txt",   # 👈 use cookies file
         "ffmpeg_location": FFMPEG_PATH,
     }
 
-    # add mp3 postprocessor when needed
+    # Add mp3 postprocessor when needed
     if quality == "mp3":
         ydl_opts["postprocessors"] = [{
             "key": "FFmpegExtractAudio",
@@ -71,14 +73,14 @@ def download():
     except Exception as e:
         abort(400, f"Failed to download: {e}")
 
-    # find largest resulting file in tmpdir
+    # Find largest resulting file in tmpdir
     files = [os.path.join(tmpdir, f) for f in os.listdir(tmpdir)]
     if not files:
         abort(500, "No output file found.")
     filepath = max(files, key=lambda p: os.path.getsize(p))
     filename = os.path.basename(filepath)
 
-    # background cleanup
+    # Background cleanup
     def cleanup(path):
         import time, shutil
         time.sleep(30)
